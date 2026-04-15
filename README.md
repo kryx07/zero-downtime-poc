@@ -27,7 +27,7 @@ graph TD
     App[Applications with Smart JDBC Router] -->|Long Polling| Consul[Consul Cluster]
     App -->|Active: ORACLE| Oracle[(Oracle 19c)]
     App -->|Active: POSTGRES| PG[(PostgreSQL 16)]
-    Oracle <-->|CDC Worker (Outbox)| PG
+    Oracle <-->|"CDC Worker (Outbox)"| PG
 ```
 
 **Key Improvements:**
@@ -54,30 +54,49 @@ This spins up:
 mvn clean install
 ```
 
+### 3. Run the Applications
+Open separate terminals and start the Spring Boot applications:
+```bash
+# Terminal 1: Start App 1
+cd app1-websphere
+mvn spring-boot:run
+
+# Terminal 2: Start App 2
+cd app2-springboot
+mvn spring-boot:run
+
+# Terminal 3: Start CDC Worker
+cd cdc-worker
+mvn spring-boot:run
+```
+
 ## Demo Scripts
 
 ### Demo 1: The "Before" State (The Pain of DNS)
 Simulate the legacy failover process.
 
-1. **Send Traffic:** Continuously curl the application endpoint.
+1. **Observe Initial State:**
+   - Open Consul at `http://localhost:8500` to check service health and Key-Value state.
+   - Open Grafana at `http://localhost:3000` to monitor active connections, routing targets, and database load. You'll see traffic bound for Oracle.
+2. **Send Traffic:** Continuously curl the application endpoint.
    ```bash
    while true; do curl http://localhost:8081/legacy-query; sleep 1; done
    ```
-2. **Simulate Outage:** Stop the primary database or app container.
+3. **Simulate Outage:** Stop the primary database or app container.
    ```bash
    docker stop app1-websphere
    ```
-3. **DNS Update & Wait:** In reality, this is updating DNS at the provider and waiting.
+4. **DNS Update & Wait:** In reality, this is updating DNS at the provider and waiting.
    ```bash
    # Simulate DNS update by editing /etc/hosts or docker networks
    echo "Simulating 10 minute wait for DNS TTL..."
    sleep 10
    ```
-4. **Data Guard Switchover:** Start the standby database.
+5. **Data Guard Switchover:** Start the standby database.
    ```bash
    docker start oracle-standby
    ```
-5. **Restart App:** Bring the application back online.
+6. **Restart App:** Bring the application back online.
    ```bash
    docker start app1-websphere
    ```
@@ -87,6 +106,7 @@ Simulate the legacy failover process.
 #### 1. Normal Operations
 - Traffic flows to Apps 1 & 2.
 - Routing points to Oracle (`curl http://localhost:8500/v1/kv/db/active` returns `ORACLE`).
+- **Observability:** Keep an eye on Grafana (`http://localhost:3000`) and Consul (`http://localhost:8500`). The active database routing panel will show `ORACLE` and connection metrics will reflect load on the primary.
 - CDC Worker constantly replicates outbox records to Postgres.
 
 #### 2. Graceful Switchover (Planned Outage)
@@ -102,6 +122,7 @@ Simulate the legacy failover process.
   - CDC Worker updates Consul KV to `POSTGRES`.
   - Apps automatically unpark and resume routing to Postgres.
   - No 500 errors returned to clients, only brief latency.
+  - **Observe in Grafana:** The active routing target flips to `POSTGRES`, and you should see no dropped connections/errors, just a slight increase in response time during the park phase.
 
 #### 3. Operations on Postgres (Dynamic Translation)
 - Hit the App 1 endpoint executing `SELECT NVL(salary, 0) FROM DUAL`.
@@ -115,7 +136,7 @@ Simulate the legacy failover process.
   ```
 - Consul health checks fail.
 - Automatic reroute triggered to Postgres.
-- Check Grafana to see the brief error spike before auto-recovery.
+- **Observe in Grafana / Consul:** Check Grafana to see the brief error spike before auto-recovery, and the active database shifting to `POSTGRES`. Consul UI (`http://localhost:8500`) will also flag the Oracle health check as critical.
 
 ## Code Structure
 

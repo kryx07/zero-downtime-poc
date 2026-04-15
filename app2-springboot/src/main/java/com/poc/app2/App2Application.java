@@ -10,6 +10,8 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import jakarta.persistence.Table;
+import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
 
@@ -21,17 +23,19 @@ public class App2Application {
     }
 
     @Bean
+    @Primary
     public DataSource dataSource() {
-        DataSource oracle = DataSourceBuilder.create().url("jdbc:oracle:thin:@localhost:1521:FREE").username("system").password("oracle").build();
-        DataSource postgres = DataSourceBuilder.create().url("jdbc:postgresql://localhost:5432/mydb").username("postgres").password("postgres").build();
+        DataSource oracle = DataSourceBuilder.create().url("jdbc:oracle:thin:@oracle-primary:1521:FREE").username("system").password("oracle").build();
+        DataSource postgres = DataSourceBuilder.create().url("jdbc:postgresql://postgres:5432/mydb").username("postgres").password("postgres").build();
         
-        SmartRoutingDataSource router = new SmartRoutingDataSource(oracle, postgres, "http://localhost:8500");
+        SmartRoutingDataSource router = new SmartRoutingDataSource(oracle, postgres, "http://consul-server1:8500");
         router.afterPropertiesSet();
         return router;
     }
 }
 
 @Entity
+@Table(name = "app_user")
 class AppUser {
     @Id
     public String id;

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
 import java.net.URI;
@@ -29,13 +30,14 @@ public class CdcWorkerApplication {
     }
     
     @Bean(name = "oracleDs")
+    @Primary
     public DataSource oracleDataSource() {
-        return DataSourceBuilder.create().url("jdbc:oracle:thin:@localhost:1521:FREE").username("system").password("oracle").build();
+        return DataSourceBuilder.create().url("jdbc:oracle:thin:@oracle-primary:1521:FREE").username("system").password("oracle").build();
     }
     
     @Bean(name = "postgresDs")
     public DataSource postgresDataSource() {
-        return DataSourceBuilder.create().url("jdbc:postgresql://localhost:5432/mydb").username("postgres").password("postgres").build();
+        return DataSourceBuilder.create().url("jdbc:postgresql://postgres:5432/mydb").username("postgres").password("postgres").build();
     }
 }
 
@@ -84,7 +86,7 @@ class ReplicationWorker {
     }
 
     private String getConsulState() throws Exception {
-        HttpRequest req = HttpRequest.newBuilder().uri(URI.create("http://localhost:8500/v1/kv/db/active")).GET().build();
+        HttpRequest req = HttpRequest.newBuilder().uri(URI.create("http://consul-server1:8500/v1/kv/db/active")).GET().build();
         HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() == 200) {
             String body = res.body();
@@ -99,7 +101,7 @@ class ReplicationWorker {
     }
     
     private void setConsulState(String state) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder().uri(URI.create("http://localhost:8500/v1/kv/db/active"))
+        HttpRequest req = HttpRequest.newBuilder().uri(URI.create("http://consul-server1:8500/v1/kv/db/active"))
             .PUT(HttpRequest.BodyPublishers.ofString(state)).build();
         httpClient.send(req, HttpResponse.BodyHandlers.ofString());
     }
