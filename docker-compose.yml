@@ -1,0 +1,49 @@
+version: '3.8'
+services:
+  oracle-primary:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      - ORACLE_PASSWORD=oracle
+    ports:
+      - "1521:1521"
+  oracle-standby:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      - ORACLE_PASSWORD=oracle
+    ports:
+      - "1522:1521"
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"
+  consul-server1:
+    image: hashicorp/consul:1.17
+    command: "agent -server -ui -node=server-1 -bootstrap-expect=3 -client=0.0.0.0"
+    ports:
+      - "8500:8500"
+  consul-server2:
+    image: hashicorp/consul:1.17
+    command: "agent -server -node=server-2 -join=consul-server1"
+  consul-server3:
+    image: hashicorp/consul:1.17
+    command: "agent -server -node=server-3 -join=consul-server1"
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.7.0
+    ports:
+      - "8474:8474"
+      - "15210:15210"
+      - "54320:54320"
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
