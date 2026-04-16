@@ -15,3 +15,4 @@ CREATE TABLE app_user (
 INSERT INTO app_user (id, name) VALUES ('1', 'Alice');
 INSERT INTO app_user (id, name) VALUES ('2', 'Bob');
 COMMIT;
+INSERT INTO outbox (payload, processed) VALUES ('{"event": "system_init", "db": "oracle"}', 0);
